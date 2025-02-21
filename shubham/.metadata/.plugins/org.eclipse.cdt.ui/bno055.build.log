@@ -1,0 +1,10 @@
+17:55:50 **** Build of configuration Debug for project bno055 ****
+make -j8 all 
+arm-none-eabi-size  bno055.elf 
+   text	   data	    bss	    dec	    hex	filename
+  29756	    480	   2064	  32300	   7e2c	bno055.elf
+Finished building: default.size.stdout
+ 
+
+17:55:51 Build Finished. 0 errors, 0 warnings. (took 694ms)
+

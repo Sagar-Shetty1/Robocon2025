@@ -1,0 +1,29 @@
+18:23:27 **** Incremental Build of configuration Debug for project Stepper_On_UART ****
+make -j8 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F446xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c:87:12: warning: 'stepper_running' defined but not used [-Wunused-variable]
+   87 | static int stepper_running = 0;  // Toggle flag
+      |            ^~~~~~~~~~~~~~~
+../Core/Src/main.c:83:12: warning: 'direction' defined but not used [-Wunused-variable]
+   83 | static int direction = 1;
+      |            ^~~~~~~~~
+../Core/Src/main.c:81:12: warning: 'step_state' defined but not used [-Wunused-variable]
+   81 | static int step_state = 0;
+      |            ^~~~~~~~~~
+../Core/Src/main.c:79:17: warning: 'last_step_time' defined but not used [-Wunused-variable]
+   79 | static uint32_t last_step_time = 0;
+      |                 ^~~~~~~~~~~~~~
+arm-none-eabi-gcc -o "Stepper_On_UART.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\Shubham\STM32CubeIDE\workspace_1.17.0\Stepper_On_UART\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Stepper_On_UART.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: Stepper_On_UART.elf
+ 
+arm-none-eabi-size  Stepper_On_UART.elf 
+arm-none-eabi-objdump -h -S Stepper_On_UART.elf  > "Stepper_On_UART.list"
+   text	   data	    bss	    dec	    hex	filename
+  17568	    112	   2160	  19840	   4d80	Stepper_On_UART.elf
+Finished building: default.size.stdout
+ 
+Finished building: Stepper_On_UART.list
+ 
+
+18:23:29 Build Finished. 0 errors, 4 warnings. (took 2s.510ms)
+

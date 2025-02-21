@@ -1,0 +1,28 @@
+18:51:23 **** Incremental Build of configuration Debug for project Esp32_Uart ****
+make -j8 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F446xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:358:50: warning: implicit declaration of function 'HAL_TIM_PWM_Start'; did you mean 'HAL_DMA_Start'? [-Wimplicit-function-declaration]
+  358 |                                                  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+      |                                                  ^~~~~~~~~~~~~~~~~
+      |                                                  HAL_DMA_Start
+../Core/Src/main.c:358:69: error: 'htim3' undeclared (first use in this function)
+  358 |                                                  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+      |                                                                     ^~~~~
+../Core/Src/main.c:358:69: note: each undeclared identifier is reported only once for each function it appears in
+../Core/Src/main.c:358:75: error: 'TIM_CHANNEL_1' undeclared (first use in this function); did you mean 'DMA_CHANNEL_1'?
+  358 |                                                  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_1);
+      |                                                                           ^~~~~~~~~~~~~
+      |                                                                           DMA_CHANNEL_1
+../Core/Src/main.c:359:75: error: 'TIM_CHANNEL_2' undeclared (first use in this function); did you mean 'DMA_CHANNEL_2'?
+  359 |                                                  HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_2);
+      |                                                                           ^~~~~~~~~~~~~
+      |                                                                           DMA_CHANNEL_2
+../Core/Src/main.c:360:69: error: 'htim5' undeclared (first use in this function)
+  360 |                                                  HAL_TIM_PWM_Start(&htim5,TIM_CHANNEL_1);
+      |                                                                     ^~~~~
+make: *** [Core/Src/subdir.mk:34: Core/Src/main.o] Error 1
+"make -j8 all" terminated with exit code 2. Build might be incomplete.
+
+18:51:24 Build Failed. 5 errors, 1 warnings. (took 1s.54ms)
+

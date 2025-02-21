@@ -1,0 +1,10 @@
+17:55:47 **** Build of configuration Debug for project Stepper_Motor ****
+make -j8 all 
+arm-none-eabi-size  Stepper_Motor.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8024	     16	   1640	   9680	   25d0	Stepper_Motor.elf
+Finished building: default.size.stdout
+ 
+
+17:55:48 Build Finished. 0 errors, 0 warnings. (took 706ms)
+
