@@ -1,0 +1,8 @@
+../Core/Src/bno055.c:12:26:BNO055_Write8	32	static
+../Core/Src/bno055.c:18:26:BNO055_Read	40	static
+../Core/Src/bno055.c:28:19:BNO055_Init	24	static
+../Core/Src/bno055.c:61:19:BNO055_GetAccelerometer	24	static
+../Core/Src/bno055.c:77:19:BNO055_GetGyroscope	24	static
+../Core/Src/bno055.c:93:19:BNO055_GetEulerAngles	24	static
+../Core/Src/bno055.c:109:19:BNO055_GetQuaternion	32	static
+../Core/Src/bno055.c:126:19:BNO055_GetAllData	24	static

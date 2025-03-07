@@ -1,0 +1,6 @@
+../Core/Src/stm32f4xx_hal_msp.c:67:6:HAL_MspInit	1
+../Core/Src/stm32f4xx_hal_msp.c:92:6:HAL_TIM_Base_MspInit	5
+../Core/Src/stm32f4xx_hal_msp.c:141:6:HAL_TIM_MspPostInit	3
+../Core/Src/stm32f4xx_hal_msp.c:194:6:HAL_TIM_Base_MspDeInit	5
+../Core/Src/stm32f4xx_hal_msp.c:249:6:HAL_UART_MspInit	3
+../Core/Src/stm32f4xx_hal_msp.c:308:6:HAL_UART_MspDeInit	2
