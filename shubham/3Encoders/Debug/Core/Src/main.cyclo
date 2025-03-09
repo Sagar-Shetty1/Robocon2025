@@ -1,0 +1,10 @@
+../Core/Src/main.c:59:6:Channel_A_Config	1
+../Core/Src/main.c:72:6:Channel_B_Config	1
+../Core/Src/main.c:85:6:Encoder_Init	1
+../Core/Src/main.c:103:10:Get_Encoder_Counts	1
+../Core/Src/main.c:115:5:main	1
+../Core/Src/main.c:161:6:SystemClock_Config	3
+../Core/Src/main.c:206:13:MX_USART2_UART_Init	2
+../Core/Src/main.c:237:13:MX_GPIO_Init	1
+../Core/Src/main.c:269:5:_write	1
+../Core/Src/main.c:279:6:Error_Handler	1
