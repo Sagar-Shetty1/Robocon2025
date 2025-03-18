@@ -67,10 +67,10 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
-#define stepper_direction_Pin GPIO_PIN_15
-#define stepper_direction_GPIO_Port GPIOB
-#define stepper_speed_Pin GPIO_PIN_6
-#define stepper_speed_GPIO_Port GPIOC
+#define stepper_speed_Pin GPIO_PIN_15
+#define stepper_speed_GPIO_Port GPIOB
+#define stepper_direction_Pin GPIO_PIN_6
+#define stepper_direction_GPIO_Port GPIOC
 #define motor1_Pin GPIO_PIN_7
 #define motor1_GPIO_Port GPIOC
 #define motor2_Pin GPIO_PIN_8
