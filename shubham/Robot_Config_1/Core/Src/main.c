@@ -76,11 +76,14 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_uart4_rx;
 
 /* USER CODE BEGIN PV */
+static uint32_t last_step_time = 0;
 static uint32_t last_step_time1 = 0;
+static int step_state = 0;
 static int step_state1 = 0;
 static int direction1 = 1;
-int step_delay = 5;
-int step_delay1 = 1;
+int step_delay = 1;
+int step_delay1 = 0.1;
+static int stepper_running = 0;  // Toggle flag
 static int stepper_running1 = 0;  // Toggle flag
 static int ebike_running = 0;  // Toggle flag
 static int prev_cir = 0;
@@ -161,230 +164,115 @@ volatile int32_t prev_encoder5 = 0;
 volatile int32_t prev_encoder10 = 0;
 volatile int32_t prev_encoder11 = 0;
 
+volatile int32_t forward_count = 0;
+volatile int32_t backward_count = 0;
+volatile int32_t left_count = 0;
+volatile int32_t right_count = 0;
+
+/* arduino odometry */
+// Tracking variables
+float totalDistanceX = 0;
+float totalDistanceY = 0;
+
+// Velocity tracking
+float velocityX = 0;
+float velocityY = 0;
+
+// Acceleration tracking
+float accelX = 0;
+float accelY = 0;
+unsigned long lastUpdateTime = 0;
+
+// Calibration offset
+//imu::Vector<3> linearAccelOffset;
+// Global position and velocity variables
+double dx = 0.0;  // Position in mm
+double dy = 0.0;  // Position in mm
+double vx = 0.0;  // Velocity in mm/s
+double vy = 0.0;  // Velocity in mm/s
+
+// Encoder pins
+const int ENCODER1_A = 3;
+const int ENCODER1_B = 4;
+const int ENCODER2_A = 18;
+const int ENCODER2_B = 7;
+const int ENCODER3_A = 2;
+const int ENCODER3_B = 24;
+
+// Robot physical parameters
+const float WHEEL_DIAMETER_MM = 150.0;  // Wheel diameter in mm
+const float WHEEL_RADIUS_MM = WHEEL_DIAMETER_MM / 2.0;
+const int ENCODER_RESOLUTION = 200;  // Ticks per revolution
+const float MM_PER_TICK = (M_PI * WHEEL_DIAMETER_MM) / ENCODER_RESOLUTION;
+const float ROBOT_RADIUS_MM = 310.0;  // Distance from center to wheels in mm
+
+// Timing variables
+unsigned long lastTime = 0;
+int lastTickF = 0;
+int lastTickR = 0;
+int lastTickL = 0;
+
+// Encoder tracking
+volatile long encoder1Ticks = 0;
+volatile long encoder2Ticks = 0;
+volatile long encoder3Ticks = 0;
+volatile bool encoder1Direction = true;
+volatile bool encoder2Direction = true;
+volatile bool encoder3Direction = true;
+
+// Function to calculate wheel velocity in mm/s
+float calculateWheelVelocity(long currentTicks, long lastTicks,
+		float timeChange) {
+	float deltaTicks = currentTicks - lastTicks;
+	return (deltaTicks * MM_PER_TICK) / timeChange;
+}
+
+void computeRobotMotion() {
+	unsigned long currentTime = HAL_GetTick();
+	float timeChange = (currentTime - lastTime) / 1000.0;  // Convert to seconds
+
+	// Only update if enough time has passed (avoid division by very small numbers)
+	if (timeChange >= 0.01) {  // 10ms minimum interval
+		// Calculate wheel velocities in mm/s
+		float Va = calculateWheelVelocity(signed_counter1, lastTickF,
+				timeChange);
+		float Vb = calculateWheelVelocity(signed_counter2, lastTickR,
+				timeChange);
+		float Vc = calculateWheelVelocity(signed_counter3, lastTickL,
+				timeChange);
+
+		// Calculate robot velocities using inverse kinematics
+		// For a three-wheel configuration at 0°, 120°, and 240°
+		vx = Va - 0.5 * Vb - 0.5 * Vc;  // mm/s
+		vy = 0.0 * Va - 0.866 * Vb + 0.866 * Vc;  // mm/s
+		// vy=0.5*Vb+Vc*0.866;
+		// vx=Va+Vb*0.866+Vc*0.5;
+
+		// Update position by integrating velocity
+		dx += vx * timeChange;  // mm
+		dy += vy * timeChange;  // mm
+
+		// Store current values for next iteration
+		lastTickF = signed_counter1;
+		lastTickR = signed_counter2;
+		lastTickL = signed_counter3;
+		lastTime = currentTime;
+
+		// Print results
+
+//        printf("Wheel Velocities (mm/s) - A: %.2f B: %.2f C: %.2f\r", Va, Vb, Vc);
+	}
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	HAL_UART_Receive_DMA(&huart4, rxbuff, 16);
 }
+
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
 
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
 }
-//void update_odometry(float theta_current, int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//    // Calculate encoder deltas
-//    int32_t delta_enc1 = encoder1 - encoder_prev[0];
-//    int32_t delta_enc2 = encoder2 - encoder_prev[1];
-//    int32_t delta_enc3 = encoder3 - encoder_prev[2];
-//
-//    // Save current encoder values
-//    encoder_prev[0] = encoder1;
-//    encoder_prev[1] = encoder2;
-//    encoder_prev[2] = encoder3;
-//
-//    // Convert encoder deltas to linear displacements (meters)
-//    float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//    float delta_s1 = (delta_enc1 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s2 = (delta_enc2 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s3 = (delta_enc3 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//
-//    // Calculate change in heading (radians)
-//    float delta_theta = theta_current - theta_prev;
-//    theta_prev = theta_current;
-//
-//    // Compute local displacements (robot frame)
-//    float delta_x_robot = (delta_s3 - delta_s2) / 1.732f; // sqrt(3) ≈ 1.732
-//    float delta_y_robot = delta_s1 - (L * delta_theta);
-//
-//    // Rotate local displacements to global frame using current theta
-//    float cos_theta = cosf(theta_current);
-//    float sin_theta = sinf(theta_current);
-//    float delta_x_global = delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    float delta_y_global = delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//
-//    // Update global position
-//    x_global += delta_x_global;
-//    y_global += delta_y_global;
-//}
-
-//void update_odometry(float theta_current, int16_t encoder1, int16_t encoder2, int16_t encoder3) {
-//    // Calculate encoder deltas
-//    int32_t delta_enc1 = encoder1 - encoder_prev[0];
-//    int32_t delta_enc2 = encoder2 - encoder_prev[1];
-//    int32_t delta_enc3 = encoder3 - encoder_prev[2];
-//
-//    // Save current encoder values
-//    encoder_prev[0] = encoder1;
-//    encoder_prev[1] = encoder2;
-//    encoder_prev[2] = encoder3;
-//
-//    // Convert encoder deltas to linear displacements (meters)
-//    float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//    float delta_s1 = (delta_enc1 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s2 = (delta_enc2 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s3 = (delta_enc3 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//
-//    // Calculate change in heading (radians)
-//    float delta_theta = theta_current - theta_prev;
-//	theta_prev = theta_current;
-//
-//    // Compute local displacements (robot frame)
-//    float delta_x_robot = (2.0f / 3.0f) * (delta_s3 - delta_s2);
-//    float delta_y_robot = (1.0f / 3.0f) * (delta_s1 - delta_s2 - delta_s3);
-//
-//    // Rotate local displacements to global frame using current theta
-//    float cos_theta = cosf(theta_current);
-//    float sin_theta = sinf(theta_current);
-//    float delta_x_global = delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    float delta_y_global = delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//
-//    // Update global position
-//    x_global += delta_x_global;
-//    y_global += delta_y_global;
-//}
-
-//void update_odometry(MovementState current_state) {
-//    // Read current encoder values (adjust timer registers according to your setup)
-//    int32_t curr_encoder5 = signed_counter1;
-//    int32_t curr_encoder10 = signed_counter2;
-//    int32_t curr_encoder11 = signed_counter3;
-//
-//    // Calculate delta counts
-//    int32_t delta5 = curr_encoder5 - prev_encoder5;
-//    int32_t delta10 = curr_encoder10 - prev_encoder10;
-//    int32_t delta11 = curr_encoder11 - prev_encoder11;
-//
-//    // Update previous values
-//    prev_encoder5 = curr_encoder5;
-//    prev_encoder10 = curr_encoder10;
-//    prev_encoder11 = curr_encoder11;
-//
-//    // Convert counts to mm
-//    float delta_x_robot = 0.0f;
-//    float delta_y_robot = 0.0f;
-//
-//    // Calculate movement based on current state (mirror your motor control logic)
-//    switch(current_state) {
-//        case FORWARD:
-//            delta_y_robot = ((delta10 + delta11) / 2.0f) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case BACKWARD:
-//            delta_y_robot = -(delta10 + delta11) / 2.0f * DISTANCE_PER_TICK;
-//            break;
-//
-//        case RIGHT:
-//            delta_x_robot = (delta5 + (delta10 + delta11) * cos30) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case LEFT:
-//            delta_x_robot = -(delta5 + (delta10 + delta11) * cos30) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case CLOCKWISE:
-//        case ANTICLOCKWISE:
-//            // Pure rotation handled by IMU, no translation
-//            break;
-//
-//        default:
-//            // No movement
-//            break;
-//    }
-//
-//    // Get current heading from IMU (implement your IMU read function)
-//    theta = yaw;
-//
-//    // Rotate local movement to global coordinates
-//    float cos_theta = cosf(theta);
-//    float sin_theta = sinf(theta);
-//
-//    // Update global position
-//    x += delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    y += delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//}
-
-//void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//	float avgCounts = (abs(encoder1) + abs(encoder2) + abs(encoder3)) / 3;
-//	float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//	// forward
-//	if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-//		dist1 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//	}
-//	// backward
-//	if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-//		dist2 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//	}
-//	// right
-//	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//		dist3 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000) * cos30;
-//	}
-//	// left
-//	if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//		dist4 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000) * cos30;
-//	}
-//
-//	if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-//		x = x + dist1;
-//	} else if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-//		x = x - dist2;
-//	}
-//
-//	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//		y = y + dist3;
-//	} else if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//		y = y - dist4;
-//	}
-//
-//}
-
-//void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//	// Calculate the change in encoder values
-//	int16_t delta1 = encoder1 - last_encoder1;
-//	int32_t delta2 = encoder2 - last_encoder2;
-//	int16_t delta3 = encoder3 - last_encoder3;
-//
-//	// Compute the average change in encoder counts
-//	float avgDelta = (abs(delta1) + abs(delta2) + abs(delta3)) / 3.0;
-//
-//	float avgCounts = (abs(encoder1) + abs(encoder2) + abs(encoder3)) / 3.0;
-//	float avgCounts1 = (abs(encoder1) + abs(encoder2)) / 2.0;
-//
-//	// Only update distances if encoders have moved
-//	if (avgDelta > 0) {
-//		float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//		float distance = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-////		float distance1 = (avgCounts1 / ENCODER_COUNTS_PER_REV)
-////				* (wheel_circumference / 1000);
-//		float distance1 = (1 / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//
-//		if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-////			dist1 = distance1;
-////			x += dist1;
-//			x = distance1 * avgCounts1;
-//		} else if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-////			dist2 = distance1;
-////			x -= dist2;
-//			x = distance1 * avgCounts1;
-//		}
-//
-//		if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//			dist3 = distance * cos30;
-//			y += dist3;
-//		} else if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//			dist4 = distance * cos30;
-//			y -= dist4;
-//		}
-//	}
-//
-//	// Update last encoder values for the next iteration
-//	last_encoder1 = encoder1;
-//	last_encoder2 = encoder2;
-//	last_encoder3 = encoder3;
-//}
 
 void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
 	// Calculate the change in encoder values
@@ -501,6 +389,7 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		computeRobotMotion();
 		/* ps5 controller */
 		lx = (rxbuff[0] & 0x80) ?
 				(int32_t) rxbuff[0] - 256 : (int32_t) rxbuff[0];
@@ -567,14 +456,20 @@ int main(void) {
 		yaw = -(atan2(2.0 * (v.w * v.z + v.x * v.y),
 				1.0 - 2.0 * (v.y * v.y + v.z * v.z))) * (180.0 / pi);
 //				printf("Yaw: %.2f\r\n", yaw);
-		printf("Encoder position: %d %d %d X: %.2f Y: %.2f\r\n",
-				signed_counter1, signed_counter2, signed_counter3, x, y);
+//		printf("Encoder position: %d %d %d X: %.2f Y: %.2f\r\n",
+//				signed_counter1, signed_counter2, signed_counter3, x, y);
+
+		printf(
+				"Encoder position: %d %ld %d Position (mm) - X: %.2f Y: %.2f Velocity (mm/s) - X: %.2f Y: %.2f\r\n",
+				signed_counter1, signed_counter2, signed_counter3, dx, dy, vx,
+				vy);
 
 		/* 3 wheel */
 		uint16_t dutycycle;
 
 		dutycycle = 0;
-		MovementState current_state = STOP;
+		MovementState current_state;
+		MovementState last_state;
 		/* chassis */
 		//motors stop
 		if (ly >= Buff2 && ly <= Buff1 && lx >= Buff2 && lx <= Buff1
@@ -740,7 +635,7 @@ int main(void) {
 
 		}
 
-		if(current_state == CLOCKWISE || current_state == ANTICLOCKWISE){
+		if (current_state == CLOCKWISE || current_state == ANTICLOCKWISE) {
 			stopEncoders();
 		} else {
 			startEncoders();
@@ -820,32 +715,56 @@ int main(void) {
 //		}
 		update_odometry(signed_counter1, signed_counter2, signed_counter3);
 		/* Stepper */
+
+		/* Test */
+		direction1 = 1;
+		stepper_running = 1;
+		stepper_running1 = 1;
+		/* Test */
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3,
+				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,
 				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
 		if (ll1 == 1 && !prev_ll1) {  // LL1 button pressed
 			direction1 = 1;  // Set to Anti-clockwise
+			stepper_running = 1;
 			stepper_running1 = 1;
 		}
 		if (rr1 == 1 && !prev_rr1) {  // RR1 button pressed
 			direction1 = 0;  // Set to Clockwise
+			stepper_running = 1;
 			stepper_running1 = 1;
 		}
 		if (cir == 1 && !prev_cir) {
+			stepper_running = 0;
 			stepper_running1 = 0;
 		}
 		prev_ll1 = ll1;
 		prev_rr1 = rr1;
 		prev_cir = cir;
+
+		if (stepper_running && (HAL_GetTick() - last_step_time) >= step_delay) {
+			last_step_time = HAL_GetTick();
+
+			if (step_state == 0) {
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // Step HIGH
+				step_state = 1;
+			} else {
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // Step LOW
+				step_state = 0;
+			}
+		}
+
 		if (stepper_running1
 				&& (HAL_GetTick() - last_step_time1) >= step_delay1) {
 			last_step_time1 = HAL_GetTick(); // Update last step time
 
 			if (step_state1 == 0) {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // Step HIGH
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET); // Step HIGH
 				step_state1 = 1;
 			} else {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // Step LOW
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET); // Step LOW
 				step_state1 = 0;
 			}
 		}
@@ -871,6 +790,10 @@ int main(void) {
 			//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, 1);
 			TIM13->CCR1 = (0 * 999) / 3500;
 			HAL_TIM_PWM_Start(&htim13, TIM_CHANNEL_1);
+		}
+		if (current_state != last_state) {
+			resetEncoders();
+			last_state = current_state;
 		}
 	}
 	/* USER CODE END 3 */
@@ -1463,8 +1386,8 @@ static void MX_GPIO_Init(void) {
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOC,
 			GPIO_PIN_15 | GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3
-					| GPIO_PIN_5 | stepper_direction_Pin | motor1_Pin
-					| motor2_Pin | motor3_Pin, GPIO_PIN_RESET);
+					| GPIO_PIN_4 | GPIO_PIN_5 | stepper_direction_Pin
+					| motor1_Pin | motor2_Pin | motor3_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOA, LD2_Pin | GPIO_PIN_11 | GPIO_PIN_12,
@@ -1472,8 +1395,7 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB,
-			GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_12 | stepper_speed_Pin,
-			GPIO_PIN_RESET);
+	GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_12 | stepper_speed_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : B1_Pin */
 	GPIO_InitStruct.Pin = B1_Pin;
@@ -1482,11 +1404,11 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : PC15 PC0 PC1 PC2
-	 PC3 PC5 stepper_direction_Pin motor1_Pin
-	 motor2_Pin motor3_Pin */
+	 PC3 PC4 PC5 stepper_direction_Pin
+	 motor1_Pin motor2_Pin motor3_Pin */
 	GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
-			| GPIO_PIN_3 | GPIO_PIN_5 | stepper_direction_Pin | motor1_Pin
-			| motor2_Pin | motor3_Pin;
+			| GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | stepper_direction_Pin
+			| motor1_Pin | motor2_Pin | motor3_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
