@@ -33,6 +33,7 @@
 #define WHEEL_RADIUS        63.5f    // meters
 #define ENCODER_COUNTS_PER_REV  349.9844447f // Encoder counts per wheel revolution
 #define L                   0.314f     // Distance from robot center to wheels (meters)
+#define STEPS 240
 
 // Global variables
 float x_global = 0.0f;      // Global X position (meters)
@@ -76,18 +77,29 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_uart4_rx;
 
 /* USER CODE BEGIN PV */
+static uint32_t last_step_time = 0;
 static uint32_t last_step_time1 = 0;
+static int step_state = 0;
 static int step_state1 = 0;
 static int direction1 = 1;
-int step_delay = 5;
+int step_delay = 1;
 int step_delay1 = 1;
+static int stepper_running = 0;  // Toggle flag
 static int stepper_running1 = 0;  // Toggle flag
 static int ebike_running = 0;  // Toggle flag
 static int prev_cir = 0;
 static int prev_tri = 0;
 static int prev_cro = 0;
+static int prev_squ = 0;
 static int prev_ll1 = 0;
 static int prev_rr1 = 0;
+static int prev_ll2 = 0;
+static int prev_rr2 = 0;
+uint32_t target_steps = 0;
+uint32_t current_steps = 0;
+uint32_t target_steps1 = 0;
+uint32_t current_steps1 = 0;
+uint32_t drib_speed = 70;
 
 // Encoder counters
 int16_t signed_counter1 = 0;
@@ -97,6 +109,9 @@ int16_t signed_counter3 = 0;
 //BNO055_Data_t imu_data, imuData;
 
 float yaw = 0, q0 = 0, q1 = 0, q2 = 0, q3 = 0;
+
+// pneumatics
+static int pneumatic_open = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -169,222 +184,6 @@ long map(long x, long in_min, long in_max, long out_min, long out_max) {
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
 }
-//void update_odometry(float theta_current, int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//    // Calculate encoder deltas
-//    int32_t delta_enc1 = encoder1 - encoder_prev[0];
-//    int32_t delta_enc2 = encoder2 - encoder_prev[1];
-//    int32_t delta_enc3 = encoder3 - encoder_prev[2];
-//
-//    // Save current encoder values
-//    encoder_prev[0] = encoder1;
-//    encoder_prev[1] = encoder2;
-//    encoder_prev[2] = encoder3;
-//
-//    // Convert encoder deltas to linear displacements (meters)
-//    float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//    float delta_s1 = (delta_enc1 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s2 = (delta_enc2 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s3 = (delta_enc3 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//
-//    // Calculate change in heading (radians)
-//    float delta_theta = theta_current - theta_prev;
-//    theta_prev = theta_current;
-//
-//    // Compute local displacements (robot frame)
-//    float delta_x_robot = (delta_s3 - delta_s2) / 1.732f; // sqrt(3) ≈ 1.732
-//    float delta_y_robot = delta_s1 - (L * delta_theta);
-//
-//    // Rotate local displacements to global frame using current theta
-//    float cos_theta = cosf(theta_current);
-//    float sin_theta = sinf(theta_current);
-//    float delta_x_global = delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    float delta_y_global = delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//
-//    // Update global position
-//    x_global += delta_x_global;
-//    y_global += delta_y_global;
-//}
-
-//void update_odometry(float theta_current, int16_t encoder1, int16_t encoder2, int16_t encoder3) {
-//    // Calculate encoder deltas
-//    int32_t delta_enc1 = encoder1 - encoder_prev[0];
-//    int32_t delta_enc2 = encoder2 - encoder_prev[1];
-//    int32_t delta_enc3 = encoder3 - encoder_prev[2];
-//
-//    // Save current encoder values
-//    encoder_prev[0] = encoder1;
-//    encoder_prev[1] = encoder2;
-//    encoder_prev[2] = encoder3;
-//
-//    // Convert encoder deltas to linear displacements (meters)
-//    float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//    float delta_s1 = (delta_enc1 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s2 = (delta_enc2 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//    float delta_s3 = (delta_enc3 / ENCODER_COUNTS_PER_REV) * wheel_circumference;
-//
-//    // Calculate change in heading (radians)
-//    float delta_theta = theta_current - theta_prev;
-//	theta_prev = theta_current;
-//
-//    // Compute local displacements (robot frame)
-//    float delta_x_robot = (2.0f / 3.0f) * (delta_s3 - delta_s2);
-//    float delta_y_robot = (1.0f / 3.0f) * (delta_s1 - delta_s2 - delta_s3);
-//
-//    // Rotate local displacements to global frame using current theta
-//    float cos_theta = cosf(theta_current);
-//    float sin_theta = sinf(theta_current);
-//    float delta_x_global = delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    float delta_y_global = delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//
-//    // Update global position
-//    x_global += delta_x_global;
-//    y_global += delta_y_global;
-//}
-
-//void update_odometry(MovementState current_state) {
-//    // Read current encoder values (adjust timer registers according to your setup)
-//    int32_t curr_encoder5 = signed_counter1;
-//    int32_t curr_encoder10 = signed_counter2;
-//    int32_t curr_encoder11 = signed_counter3;
-//
-//    // Calculate delta counts
-//    int32_t delta5 = curr_encoder5 - prev_encoder5;
-//    int32_t delta10 = curr_encoder10 - prev_encoder10;
-//    int32_t delta11 = curr_encoder11 - prev_encoder11;
-//
-//    // Update previous values
-//    prev_encoder5 = curr_encoder5;
-//    prev_encoder10 = curr_encoder10;
-//    prev_encoder11 = curr_encoder11;
-//
-//    // Convert counts to mm
-//    float delta_x_robot = 0.0f;
-//    float delta_y_robot = 0.0f;
-//
-//    // Calculate movement based on current state (mirror your motor control logic)
-//    switch(current_state) {
-//        case FORWARD:
-//            delta_y_robot = ((delta10 + delta11) / 2.0f) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case BACKWARD:
-//            delta_y_robot = -(delta10 + delta11) / 2.0f * DISTANCE_PER_TICK;
-//            break;
-//
-//        case RIGHT:
-//            delta_x_robot = (delta5 + (delta10 + delta11) * cos30) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case LEFT:
-//            delta_x_robot = -(delta5 + (delta10 + delta11) * cos30) * DISTANCE_PER_TICK;
-//            break;
-//
-//        case CLOCKWISE:
-//        case ANTICLOCKWISE:
-//            // Pure rotation handled by IMU, no translation
-//            break;
-//
-//        default:
-//            // No movement
-//            break;
-//    }
-//
-//    // Get current heading from IMU (implement your IMU read function)
-//    theta = yaw;
-//
-//    // Rotate local movement to global coordinates
-//    float cos_theta = cosf(theta);
-//    float sin_theta = sinf(theta);
-//
-//    // Update global position
-//    x += delta_x_robot * cos_theta - delta_y_robot * sin_theta;
-//    y += delta_x_robot * sin_theta + delta_y_robot * cos_theta;
-//}
-
-//void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//	float avgCounts = (abs(encoder1) + abs(encoder2) + abs(encoder3)) / 3;
-//	float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//	// forward
-//	if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-//		dist1 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//	}
-//	// backward
-//	if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-//		dist2 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//	}
-//	// right
-//	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//		dist3 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000) * cos30;
-//	}
-//	// left
-//	if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//		dist4 = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000) * cos30;
-//	}
-//
-//	if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-//		x = x + dist1;
-//	} else if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-//		x = x - dist2;
-//	}
-//
-//	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//		y = y + dist3;
-//	} else if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//		y = y - dist4;
-//	}
-//
-//}
-
-//void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//	// Calculate the change in encoder values
-//	int16_t delta1 = encoder1 - last_encoder1;
-//	int32_t delta2 = encoder2 - last_encoder2;
-//	int16_t delta3 = encoder3 - last_encoder3;
-//
-//	// Compute the average change in encoder counts
-//	float avgDelta = (abs(delta1) + abs(delta2) + abs(delta3)) / 3.0;
-//
-//	float avgCounts = (abs(encoder1) + abs(encoder2) + abs(encoder3)) / 3.0;
-//	float avgCounts1 = (abs(encoder1) + abs(encoder2)) / 2.0;
-//
-//	// Only update distances if encoders have moved
-//	if (avgDelta > 0) {
-//		float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//		float distance = (avgCounts / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-////		float distance1 = (avgCounts1 / ENCODER_COUNTS_PER_REV)
-////				* (wheel_circumference / 1000);
-//		float distance1 = (1 / ENCODER_COUNTS_PER_REV)
-//				* (wheel_circumference / 1000);
-//
-//		if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-////			dist1 = distance1;
-////			x += dist1;
-//			x = distance1 * avgCounts1;
-//		} else if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-////			dist2 = distance1;
-////			x -= dist2;
-//			x = distance1 * avgCounts1;
-//		}
-//
-//		if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//			dist3 = distance * cos30;
-//			y += dist3;
-//		} else if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//			dist4 = distance * cos30;
-//			y -= dist4;
-//		}
-//	}
-//
-//	// Update last encoder values for the next iteration
-//	last_encoder1 = encoder1;
-//	last_encoder2 = encoder2;
-//	last_encoder3 = encoder3;
-//}
 
 void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
 	// Calculate the change in encoder values
@@ -409,8 +208,6 @@ void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
 		x += distance_per_count * avgDelta12; // Will be negative when going backward
 	}
 
-	// Handle y-axis movement similarly...
-	// Note: Keep your original code for y movement if it's working correctly
 	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
 		dist3 = distance_per_count * abs(delta3);  // Using delta3 for y-axis
 		y += dist3;
@@ -537,8 +334,8 @@ int main(void) {
 
 		//		printf("Received Integers: %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\r\n",
 		//				lx, ly, rx, ry, cro, squ, tri, cir, ll1, rr1);
-//		printf("Received Integers: %ld %ld %ld %ld %ld %ld %ld %ld\r\n", lx, ly,
-//				rx, ry, cro, squ, tri, cir);
+		printf("Received Integers: %ld %ld %ld %ld %ld %ld %ld %ld %d %d\r\n", lx,
+				ly, rx, ry, cro, squ, tri, cir, pneumatic_open, drib_speed);
 
 		/* 3 encoders */
 		uint16_t raw_counter1 = __HAL_TIM_GET_COUNTER(&htim1);
@@ -560,16 +357,15 @@ int main(void) {
 						(int16_t) (raw_counter3 - 65536);
 
 		/* IMU */
-		bno055_vector_t v = bno055_getVectorEuler();
-		//		printf("Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", v.x, v.y, v.z);
-		v = bno055_getVectorQuaternion();
-		//		printf("W: %.2f X: %.2f Y: %.2f Z: %.2f\r\n", v.w, v.x, v.y, v.z);
-		yaw = -(atan2(2.0 * (v.w * v.z + v.x * v.y),
-				1.0 - 2.0 * (v.y * v.y + v.z * v.z))) * (180.0 / pi);
-//				printf("Yaw: %.2f\r\n", yaw);
-		printf("Encoder position: %d %d %d X: %.2f Y: %.2f\r\n",
-				signed_counter1, signed_counter2, signed_counter3, x, y);
-
+//		bno055_vector_t v = bno055_getVectorEuler();
+//		//		printf("Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", v.x, v.y, v.z);
+//		v = bno055_getVectorQuaternion();
+//		//		printf("W: %.2f X: %.2f Y: %.2f Z: %.2f\r\n", v.w, v.x, v.y, v.z);
+//		yaw = -(atan2(2.0 * (v.w * v.z + v.x * v.y),
+//				1.0 - 2.0 * (v.y * v.y + v.z * v.z))) * (180.0 / pi);
+////				printf("Yaw: %.2f\r\n", yaw);
+//		printf("Encoder position: %d %d %d X: %.2f Y: %.2f\r\n",
+//				signed_counter1, signed_counter2, signed_counter3, x, y);
 		/* 3 wheel */
 		uint16_t dutycycle;
 
@@ -606,9 +402,9 @@ int main(void) {
 
 //			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
 			current_state = FORWARD;
 //			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_RESET);
 
@@ -631,9 +427,9 @@ int main(void) {
 
 //			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
 
 //			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3, GPIO_PIN_SET);
 			current_state = BACKWARD;
@@ -656,7 +452,7 @@ int main(void) {
 			HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
 
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
 
@@ -683,7 +479,7 @@ int main(void) {
 			HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
 
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
 
@@ -706,7 +502,7 @@ int main(void) {
 			HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
 
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
 
@@ -729,7 +525,7 @@ int main(void) {
 			HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Start(&htim11, TIM_CHANNEL_1);
 
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
 
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
 
@@ -740,114 +536,82 @@ int main(void) {
 
 		}
 
-		if(current_state == CLOCKWISE || current_state == ANTICLOCKWISE){
+		if (current_state == CLOCKWISE || current_state == ANTICLOCKWISE) {
 			stopEncoders();
 		} else {
 			startEncoders();
 		}
 
-		//top-right
-//		else if (lx > 70 && ly > 70) {
-//
-//			dutycycle = map(rx, -128, Buff2, 400, 0);
-//
-//			//motor 1
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, SET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, dutycycle);
-//
-//			//motor 2
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, RESET);
-//			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, dutycycle);
-//
-//			//motor 3
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, SET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//
-//		}
-//		//top-left
-//		else if (lx < -70 && ly > 70) {
-//
-//			dutycycle = map(rx, -128, Buff2, 400, 0);
-//
-//			//motor 1
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, RESET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, dutycycle);
-//
-//			//motor 2
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, SET);
-//			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
-//
-//			//motor 3
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, SET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, dutycycle);
-//
-//		}
-//		//bottom-right
-//		else if (lx > 70 && ly < -70) {
-//
-//			dutycycle = map(rx, -128, Buff2, 400, 0);
-//
-//			//motor 1
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, SET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, dutycycle);
-//
-//			//motor 2
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, RESET);
-//			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
-//
-//			//motor 3
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, RESET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, dutycycle);
-//
-//		}
-//		//bottom-left
-//		else if (lx < -70 && ly < -70) {
-//
-//			dutycycle = map(rx, -128, Buff2, 400, 0);
-//
-//			//motor 1
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, RESET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, dutycycle);
-//
-//			//motor 2
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, SET);
-//			__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, dutycycle);
-//
-//			//motor 3
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, SET);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-//
-//		}
 		update_odometry(signed_counter1, signed_counter2, signed_counter3);
+
 		/* Stepper */
+//		stepper_running1 = 1;
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3,
 				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,
+				!direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
 		if (ll1 == 1 && !prev_ll1) {  // LL1 button pressed
 			direction1 = 1;  // Set to Anti-clockwise
+			stepper_running = 1;
 			stepper_running1 = 1;
+			target_steps = STEPS;
+			target_steps1 = STEPS;
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
 		if (rr1 == 1 && !prev_rr1) {  // RR1 button pressed
 			direction1 = 0;  // Set to Clockwise
+			stepper_running = 1;
 			stepper_running1 = 1;
+			target_steps = STEPS;
+			target_steps1 = STEPS;
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
 		if (cir == 1 && !prev_cir) {
 			stepper_running1 = 0;
+			current_steps = 0;
+			current_steps1 = 0;
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 		}
 		prev_ll1 = ll1;
 		prev_rr1 = rr1;
 		prev_cir = cir;
-		if (stepper_running1
-				&& (HAL_GetTick() - last_step_time1) >= step_delay1) {
+		if (stepper_running && (HAL_GetTick() - last_step_time) >= step_delay
+				&& current_steps < target_steps) {
+			last_step_time = HAL_GetTick(); // Update last step time
+
+			if (step_state == 0) {
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // Step HIGH
+				step_state = 1;
+				current_steps++;
+			} else {
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // Step LOW
+				step_state = 0;
+			}
+		}
+		if (stepper_running1 && (HAL_GetTick() - last_step_time1) >= step_delay1
+				&& current_steps1 < target_steps1) {
 			last_step_time1 = HAL_GetTick(); // Update last step time
 
 			if (step_state1 == 0) {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // Step HIGH
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET); // Step HIGH
 				step_state1 = 1;
+				current_steps1++;
 			} else {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // Step LOW
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET); // Step LOW
 				step_state1 = 0;
 			}
+		}
+		// Stop when target steps are reached
+		if (current_steps >= target_steps) {
+			stepper_running = 0;
+			current_steps = 0;
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+		}
+		if (current_steps1 >= target_steps1) {
+			stepper_running1 = 0;
+			current_steps1 = 0;
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 		}
 
 		/* IMU */
@@ -858,19 +622,40 @@ int main(void) {
 		}
 		if (cro == 1 && !prev_cro) {  // cro button pressed
 			printf("cross pressed");
-			direction1 = 0;  // Set to Clockwise
+//			direction1 = 0;  // Set to Clockwise
 			ebike_running = 0;
 		}
+		if (ll2 == 1 && !prev_ll2) {
+			drib_speed = drib_speed + 2;
+		}
+		prev_ll2 = ll2;
+		if (rr2 == 1 && !prev_rr2) {
+			drib_speed = drib_speed - 2;
+		}
+		prev_rr2 = rr2;
 		prev_tri = tri;
 		prev_cro = cro;
 		if (ebike_running) {
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, 1);
-			TIM13->CCR1 = (1350 * 999) / 3500;  //rpm 2000 test
+			TIM13->CCR1 = (drib_speed * 999) / 100;  //rpm 2000 test
 			HAL_TIM_PWM_Start(&htim13, TIM_CHANNEL_1);
 		} else {
 			//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, 1);
-			TIM13->CCR1 = (0 * 999) / 3500;
+			TIM13->CCR1 = (0 * 999) / 100;
 			HAL_TIM_PWM_Start(&htim13, TIM_CHANNEL_1);
+		}
+
+		// pneumatics
+		if (squ == 1) {
+			pneumatic_open = 1;
+		} else {
+			pneumatic_open = 0;
+		}
+//		prev_squ = squ;
+		if (pneumatic_open) {
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, 1);
+		} else {
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, 0);
 		}
 	}
 	/* USER CODE END 3 */
@@ -1111,8 +896,9 @@ static void MX_TIM5_Init(void) {
 
 	/* USER CODE END TIM5_Init 0 */
 
-	TIM_Encoder_InitTypeDef sConfig = { 0 };
+	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
 	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
+	TIM_OC_InitTypeDef sConfigOC = { 0 };
 
 	/* USER CODE BEGIN TIM5_Init 1 */
 
@@ -1123,16 +909,14 @@ static void MX_TIM5_Init(void) {
 	htim5.Init.Period = 4294967295;
 	htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
-	sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-	sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-	sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-	sConfig.IC1Filter = 0;
-	sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-	sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-	sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-	sConfig.IC2Filter = 0;
-	if (HAL_TIM_Encoder_Init(&htim5, &sConfig) != HAL_OK) {
+	if (HAL_TIM_Base_Init(&htim5) != HAL_OK) {
+		Error_Handler();
+	}
+	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK) {
+		Error_Handler();
+	}
+	if (HAL_TIM_PWM_Init(&htim5) != HAL_OK) {
 		Error_Handler();
 	}
 	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
@@ -1141,9 +925,22 @@ static void MX_TIM5_Init(void) {
 			!= HAL_OK) {
 		Error_Handler();
 	}
+	sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	sConfigOC.Pulse = 0;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1)
+			!= HAL_OK) {
+		Error_Handler();
+	}
+	if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_2)
+			!= HAL_OK) {
+		Error_Handler();
+	}
 	/* USER CODE BEGIN TIM5_Init 2 */
 
 	/* USER CODE END TIM5_Init 2 */
+	HAL_TIM_MspPostInit(&htim5);
 
 }
 
@@ -1158,7 +955,7 @@ static void MX_TIM8_Init(void) {
 
 	/* USER CODE END TIM8_Init 0 */
 
-	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
+	TIM_Encoder_InitTypeDef sConfig = { 0 };
 	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
 
 	/* USER CODE BEGIN TIM8_Init 1 */
@@ -1171,11 +968,16 @@ static void MX_TIM8_Init(void) {
 	htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim8.Init.RepetitionCounter = 0;
 	htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	if (HAL_TIM_Base_Init(&htim8) != HAL_OK) {
-		Error_Handler();
-	}
-	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-	if (HAL_TIM_ConfigClockSource(&htim8, &sClockSourceConfig) != HAL_OK) {
+	sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+	sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC1Filter = 0;
+	sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+	sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+	sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+	sConfig.IC2Filter = 0;
+	if (HAL_TIM_Encoder_Init(&htim8, &sConfig) != HAL_OK) {
 		Error_Handler();
 	}
 	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
@@ -1462,17 +1264,15 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOC,
-			GPIO_PIN_15 | GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3
-					| GPIO_PIN_5 | stepper_direction_Pin | motor1_Pin
-					| motor2_Pin | motor3_Pin, GPIO_PIN_RESET);
+			GPIO_PIN_15 | M1_Pin | M2_Pin | M3_Pin | stepper_direction_1_Pin
+					| ENA_1_Pin | stepper_pulse_1_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOA, LD2_Pin | GPIO_PIN_11 | GPIO_PIN_12,
-			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, LD2_Pin | P1_Pin | P2_Pin, GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOB,
-			GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_12 | stepper_speed_Pin,
+			GPIO_PIN_2 | GPIO_PIN_10 | P3_Pin | stepper_pulse_2_Pin,
 			GPIO_PIN_RESET);
 
 	/*Configure GPIO pin : B1_Pin */
@@ -1481,27 +1281,25 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : PC15 PC0 PC1 PC2
-	 PC3 PC5 stepper_direction_Pin motor1_Pin
-	 motor2_Pin motor3_Pin */
-	GPIO_InitStruct.Pin = GPIO_PIN_15 | GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
-			| GPIO_PIN_3 | GPIO_PIN_5 | stepper_direction_Pin | motor1_Pin
-			| motor2_Pin | motor3_Pin;
+	/*Configure GPIO pins : PC15 M1_Pin M2_Pin M3_Pin
+	 stepper_direction_1_Pin ENA_1_Pin stepper_pulse_1_Pin */
+	GPIO_InitStruct.Pin = GPIO_PIN_15 | M1_Pin | M2_Pin | M3_Pin
+			| stepper_direction_1_Pin | ENA_1_Pin | stepper_pulse_1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : LD2_Pin PA11 PA12 */
-	GPIO_InitStruct.Pin = LD2_Pin | GPIO_PIN_11 | GPIO_PIN_12;
+	/*Configure GPIO pins : LD2_Pin P1_Pin P2_Pin */
+	GPIO_InitStruct.Pin = LD2_Pin | P1_Pin | P2_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : PB2 PB10 PB12 stepper_speed_Pin */
-	GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_10 | GPIO_PIN_12
-			| stepper_speed_Pin;
+	/*Configure GPIO pins : PB2 PB10 P3_Pin stepper_pulse_2_Pin */
+	GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_10 | P3_Pin
+			| stepper_pulse_2_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
