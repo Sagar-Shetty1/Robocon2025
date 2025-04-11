@@ -81,8 +81,6 @@ void Error_Handler(void);
 #define stepper_pulse_1_GPIO_Port GPIOC
 #define P3_Pin GPIO_PIN_12
 #define P3_GPIO_Port GPIOB
-#define stepper_pulse_2_Pin GPIO_PIN_15
-#define stepper_pulse_2_GPIO_Port GPIOB
 #define P1_Pin GPIO_PIN_11
 #define P1_GPIO_Port GPIOA
 #define P2_Pin GPIO_PIN_12
