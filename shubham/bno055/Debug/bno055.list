@@ -2704,7 +2704,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
  8001956:	681b      	ldr	r3, [r3, #0]
  8001958:	4a19      	ldr	r2, [pc, #100]	@ (80019c0 <HAL_I2C_MspInit+0x84>)
  800195a:	4293      	cmp	r3, r2
- 800195c:	d12c      	bne.n	80019b8 <HAL_I2C_MspInit+0x7c>
+ 800195c:	d12b      	bne.n	80019b6 <HAL_I2C_MspInit+0x7a>
   {
   /* USER CODE BEGIN I2C1_MspInit 0 */
 
@@ -2724,54 +2724,55 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c)
  8001976:	613b      	str	r3, [r7, #16]
  8001978:	693b      	ldr	r3, [r7, #16]
     /**I2C1 GPIO Configuration
-    PB8     ------> I2C1_SCL
-    PB9     ------> I2C1_SDA
+    PB6     ------> I2C1_SCL
+    PB7     ------> I2C1_SDA
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
- 800197a:	f44f 7340 	mov.w	r3, #768	@ 0x300
- 800197e:	617b      	str	r3, [r7, #20]
+    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+ 800197a:	23c0      	movs	r3, #192	@ 0xc0
+ 800197c:	617b      	str	r3, [r7, #20]
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
- 8001980:	2312      	movs	r3, #18
- 8001982:	61bb      	str	r3, [r7, #24]
+ 800197e:	2312      	movs	r3, #18
+ 8001980:	61bb      	str	r3, [r7, #24]
     GPIO_InitStruct.Pull = GPIO_NOPULL;
- 8001984:	2300      	movs	r3, #0
- 8001986:	61fb      	str	r3, [r7, #28]
+ 8001982:	2300      	movs	r3, #0
+ 8001984:	61fb      	str	r3, [r7, #28]
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
- 8001988:	2303      	movs	r3, #3
- 800198a:	623b      	str	r3, [r7, #32]
+ 8001986:	2303      	movs	r3, #3
+ 8001988:	623b      	str	r3, [r7, #32]
     GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
- 800198c:	2304      	movs	r3, #4
- 800198e:	627b      	str	r3, [r7, #36]	@ 0x24
+ 800198a:	2304      	movs	r3, #4
+ 800198c:	627b      	str	r3, [r7, #36]	@ 0x24
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
- 8001990:	f107 0314 	add.w	r3, r7, #20
- 8001994:	4619      	mov	r1, r3
- 8001996:	480c      	ldr	r0, [pc, #48]	@ (80019c8 <HAL_I2C_MspInit+0x8c>)
- 8001998:	f000 faf2 	bl	8001f80 <HAL_GPIO_Init>
+ 800198e:	f107 0314 	add.w	r3, r7, #20
+ 8001992:	4619      	mov	r1, r3
+ 8001994:	480c      	ldr	r0, [pc, #48]	@ (80019c8 <HAL_I2C_MspInit+0x8c>)
+ 8001996:	f000 faf3 	bl	8001f80 <HAL_GPIO_Init>
 
     /* Peripheral clock enable */
     __HAL_RCC_I2C1_CLK_ENABLE();
- 800199c:	2300      	movs	r3, #0
- 800199e:	60fb      	str	r3, [r7, #12]
- 80019a0:	4b08      	ldr	r3, [pc, #32]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
- 80019a2:	6c1b      	ldr	r3, [r3, #64]	@ 0x40
- 80019a4:	4a07      	ldr	r2, [pc, #28]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
- 80019a6:	f443 1300 	orr.w	r3, r3, #2097152	@ 0x200000
- 80019aa:	6413      	str	r3, [r2, #64]	@ 0x40
- 80019ac:	4b05      	ldr	r3, [pc, #20]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
- 80019ae:	6c1b      	ldr	r3, [r3, #64]	@ 0x40
- 80019b0:	f403 1300 	and.w	r3, r3, #2097152	@ 0x200000
- 80019b4:	60fb      	str	r3, [r7, #12]
- 80019b6:	68fb      	ldr	r3, [r7, #12]
+ 800199a:	2300      	movs	r3, #0
+ 800199c:	60fb      	str	r3, [r7, #12]
+ 800199e:	4b09      	ldr	r3, [pc, #36]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
+ 80019a0:	6c1b      	ldr	r3, [r3, #64]	@ 0x40
+ 80019a2:	4a08      	ldr	r2, [pc, #32]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
+ 80019a4:	f443 1300 	orr.w	r3, r3, #2097152	@ 0x200000
+ 80019a8:	6413      	str	r3, [r2, #64]	@ 0x40
+ 80019aa:	4b06      	ldr	r3, [pc, #24]	@ (80019c4 <HAL_I2C_MspInit+0x88>)
+ 80019ac:	6c1b      	ldr	r3, [r3, #64]	@ 0x40
+ 80019ae:	f403 1300 	and.w	r3, r3, #2097152	@ 0x200000
+ 80019b2:	60fb      	str	r3, [r7, #12]
+ 80019b4:	68fb      	ldr	r3, [r7, #12]
 
   /* USER CODE END I2C1_MspInit 1 */
 
   }
 
 }
- 80019b8:	bf00      	nop
- 80019ba:	3728      	adds	r7, #40	@ 0x28
- 80019bc:	46bd      	mov	sp, r7
- 80019be:	bd80      	pop	{r7, pc}
+ 80019b6:	bf00      	nop
+ 80019b8:	3728      	adds	r7, #40	@ 0x28
+ 80019ba:	46bd      	mov	sp, r7
+ 80019bc:	bd80      	pop	{r7, pc}
+ 80019be:	bf00      	nop
  80019c0:	40005400 	.word	0x40005400
  80019c4:	40023800 	.word	0x40023800
  80019c8:	40020400 	.word	0x40020400

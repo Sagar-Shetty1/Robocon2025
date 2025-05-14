@@ -66,8 +66,8 @@ static uint32_t last_step_time1 = 0;
 static int step_state = 0;
 static int step_state1 = 0;
 static int direction1 = 1;
-int step_delay = 5;
-int step_delay1 = 1;
+int step_delay = 1;
+int step_delay1 = 5;
 static int stepper_running = 0;  // Toggle flag
 static int stepper_running1 = 0;  // Toggle flag
 static int ebike_running = 0;  // Toggle flag
@@ -165,29 +165,32 @@ int main(void)
     /* USER CODE BEGIN 3 */
 		/* Communication */
 		// reading buffer
-		cro = (int8_t) rxbuff[0];
-		squ = (int8_t) rxbuff[1];
-		tri = (int8_t) rxbuff[2];
-		cir = (int8_t) rxbuff[3];
-		up = (int8_t) rxbuff[4];
-		down = (int8_t) rxbuff[5];
-		left = (int8_t) rxbuff[6];
-		right = (int8_t) rxbuff[7];
-		ll1 = (int8_t) rxbuff[8];
-		rr1 = (int8_t) rxbuff[9];
-		ll2 = (int8_t) rxbuff[10];
-		rr2 = (int8_t) rxbuff[11];
-		rL = (int8_t) rxbuff[12];
-		rR = (int8_t) rxbuff[13];
-
-		// print buffer
-		printf("%d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", cro, squ, tri, cir, up, down, left, right, ll1, rr1, ll2, rr2, rL, rR);
+//		cro = (int8_t) rxbuff[0];
+//		squ = (int8_t) rxbuff[1];
+//		tri = (int8_t) rxbuff[2];
+//		cir = (int8_t) rxbuff[3];
+//		up = (int8_t) rxbuff[4];
+//		down = (int8_t) rxbuff[5];
+//		left = (int8_t) rxbuff[6];
+//		right = (int8_t) rxbuff[7];
+//		ll1 = (int8_t) rxbuff[8];
+//		rr1 = (int8_t) rxbuff[9];
+//		ll2 = (int8_t) rxbuff[10];
+//		rr2 = (int8_t) rxbuff[11];
+//		rL = (int8_t) rxbuff[12];
+//		rR = (int8_t) rxbuff[13];
+//
+//		// print buffer
+//		printf("%d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", cro, squ, tri, cir, up, down, left, right, ll1, rr1, ll2, rr2, rL, rR);
 
 		/* Stepper */
+//		stepper_running  = 1;
+//		stepper_running1 = 1;
+		direction1 = 1;
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3,
 				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,
-				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+				!direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
 		if (ll1 == 1 && !prev_ll1) {  // LL1 button pressed
 			direction1 = 1;  // Set to Anti-clockwise
@@ -222,10 +225,10 @@ int main(void)
 			last_step_time1 = HAL_GetTick(); // Update last step time
 
 			if (step_state1 == 0) {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); // Step HIGH
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_SET); // Step HIGH
 				step_state1 = 1;
 			} else {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET); // Step LOW
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET); // Step LOW
 				step_state1 = 0;
 			}
 		}
