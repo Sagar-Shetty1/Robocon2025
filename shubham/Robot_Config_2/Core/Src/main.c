@@ -191,6 +191,7 @@ static void MX_I2C2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 //void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c) {
 //	if (hi2c->Instance == I2C2) {
 //		// Set flag to indicate data received
@@ -343,55 +344,21 @@ void process_i2c_data(void) {
 		// Reset the data ready flag
 		i2c_data_ready = 0;
 	} else {
-		lx = 0, ly = 0, rx = 0, ry = 0, cro = 0, squ = 0, tri = 0, cir = 0, up = 0, down = 0, left = 0, right = 0, ll1 = 0, rr1 = 0, ll2 = 0, rr2 = 0;
+		lx = 0, ly = 0, rx = 0, ry = 0, cro = 0, squ = 0, tri = 0, cir = 0, up =
+				0, down = 0, left = 0, right = 0, ll1 = 0, rr1 = 0, ll2 = 0, rr2 =
+				0;
 	}
 }
 
 //void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 //	HAL_UART_Receive_DMA(&huart4, rxbuff, 16);
 //}
+
 long map(long x, long in_min, long in_max, long out_min, long out_max) {
 
 	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 
 }
-
-//void update_odometry(int16_t encoder1, int32_t encoder2, int16_t encoder3) {
-//	// Calculate the change in encoder values
-//	int16_t delta1 = encoder1 - last_encoder1;
-//	int32_t delta2 = encoder2 - last_encoder2;
-//	int16_t delta3 = encoder3 - last_encoder3;
-//
-//	// Calculate distance per encoder count
-//	float wheel_circumference = 2 * M_PI * WHEEL_RADIUS;
-//	float distance_per_count = (1.0 / ENCODER_COUNTS_PER_REV)
-//			* (wheel_circumference / 1000);
-//
-//	// Compute average delta for forward/backward encoders (without abs)
-//	float avgDelta12 = (delta1 + delta2) / 2.0;
-//
-//	// Check movement direction based on joystick
-//	if (ly >= Buff1 && (lx <= BuffP && lx >= BuffN)) {
-//		// Forward motion - use the actual delta (with sign) to track position
-//		x += distance_per_count * avgDelta12;
-//	} else if (ly <= Buff2 && (lx <= BuffP && lx >= BuffN)) {
-//		// Backward motion - use the actual delta (with sign) to track position
-//		x += distance_per_count * avgDelta12; // Will be negative when going backward
-//	}
-//
-//	if (lx >= Buff1 && (ly <= BuffP && ly >= BuffN)) {
-//		dist3 = distance_per_count * abs(delta3);  // Using delta3 for y-axis
-//		y += dist3;
-//	} else if (lx <= Buff2 && (ly <= BuffP && ly >= BuffN)) {
-//		dist4 = distance_per_count * abs(delta3);
-//		y -= dist4;
-//	}
-//
-//	// Update last encoder values for the next iteration
-//	last_encoder1 = encoder1;
-//	last_encoder2 = encoder2;
-//	last_encoder3 = encoder3;
-//}
 
 void resetEncoders() {
 	__HAL_TIM_SET_COUNTER(&htim1, 0);
@@ -505,10 +472,6 @@ void applyDeceleration() {
 	}
 }
 
-void Set_Servo_Angle(TIM_HandleTypeDef *htim, uint32_t channel, uint8_t angle) {
-	uint32_t pulse_length = 100 + (angle * (500 - 100) / 180);
-	__HAL_TIM_SET_COMPARE(htim, channel, pulse_length);
-}
 /* USER CODE END 0 */
 
 /**
@@ -581,69 +544,33 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		/* ps5 controller */
+
+		/* -------------------- ps5 controller -------------------- */
 		process_i2c_data();
-//		HAL_I2C_SlaveRxCpltCallback(&hi2c2);
-//
-//		lx = (rxbuff[0] & 0x80) ?
-//				(int32_t) rxbuff[0] - 256 : (int32_t) rxbuff[0];
-//		ly = (rxbuff[1] & 0x80) ?
-//				(int32_t) rxbuff[1] - 256 : (int32_t) rxbuff[1];
-//		rx = (rxbuff[2] & 0x80) ?
-//				(int32_t) rxbuff[2] - 256 : (int32_t) rxbuff[2];
-//		ry = (rxbuff[3] & 0x80) ?
-//				(int32_t) rxbuff[3] - 256 : (int32_t) rxbuff[3];
-//		tri = (rxbuff[4] & 0x80) ?
-//				(int32_t) rxbuff[4] - 256 : (int32_t) rxbuff[4];
-//		cir = (rxbuff[5] & 0x80) ?
-//				(int32_t) rxbuff[5] - 256 : (int32_t) rxbuff[5];
-//		cro = (rxbuff[6] & 0x80) ?
-//				(int32_t) rxbuff[6] - 256 : (int32_t) rxbuff[6];
-//		squ = (rxbuff[7] & 0x80) ?
-//				(int32_t) rxbuff[7] - 256 : (int32_t) rxbuff[7];
-//		ll1 = (rxbuff[8] & 0x80) ?
-//				(int32_t) rxbuff[8] - 256 : (int32_t) rxbuff[8];
-//		rr1 = (rxbuff[9] & 0x80) ?
-//				(int32_t) rxbuff[9] - 256 : (int32_t) rxbuff[9];
-//		ll2 = (rxbuff[10] & 0x80) ?
-//				(int32_t) rxbuff[10] - 256 : (int32_t) rxbuff[10];
-//		rr2 = (rxbuff[11] & 0x80) ?
-//				(int32_t) rxbuff[11] - 256 : (int32_t) rxbuff[11];
-//		up = (rxbuff[12] & 0x80) ?
-//				(int32_t) rxbuff[12] - 256 : (int32_t) rxbuff[12];
-//		down = (rxbuff[13] & 0x80) ?
-//				(int32_t) rxbuff[13] - 256 : (int32_t) rxbuff[13];
-//		right = (rxbuff[14] & 0x80) ?
-//				(int32_t) rxbuff[14] - 256 : (int32_t) rxbuff[14];
-//		left = (rxbuff[15] & 0x80) ?
-//				(int32_t) rxbuff[15] - 256 : (int32_t) rxbuff[15];
-//
+
+		// printing global values
 		printf(
 				"Received Integers: %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %d %d\r\n",
 				lx, ly, rx, ry, tri, cir, cro, squ, ll1, rr1, ll2, rr2, up,
 				down, right, left, ebike_running, drib_speed);
-//
-//		printf(
-//				"Received Integers: %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %l d %ld %ld %ld %ld %ld %.2f %.2f %.2f %d\r\n",
-//				lx, ly, rx, ry, tri, cir, cro, squ, ll1, rr1, ll2, rr2, up,
-//				down, right, left, target_wf, target_wrl, target_wrr, ebike_running);
 
-//			HAL_I2C_Slave_Receive_IT(&hi2c2, rxbuff, 16);
-
-		/* 3 wheel */
+		/* -------------------- 3 wheel -------------------- */
 		MovementState current_state = STOP;
 
 		rectToPolar();
 		compute3wheel();
 		applyDeceleration();
 
+		// reset encoders logic
 		if (current_state == CLOCKWISE || current_state == ANTICLOCKWISE) {
 			stopEncoders();
 		} else {
 			startEncoders();
 		}
 
-		/* 3 encoders */
+		/* -------------------- 3 encoders -------------------- */
+
+		// get raw encoders data
 		uint16_t raw_counter1 = __HAL_TIM_GET_COUNTER(&htim1);
 		uint32_t raw_counter2 = __HAL_TIM_GET_COUNTER(&htim2);
 		uint16_t raw_counter3 = __HAL_TIM_GET_COUNTER(&htim3);
@@ -662,7 +589,7 @@ int main(void) {
 						(int16_t) raw_counter3 :
 						(int16_t) (raw_counter3 - 65536);
 
-		/* IMU */
+		/* -------------------- IMU -------------------- */
 		//		bno055_vector_t v = bno055_getVectorEuler();
 		//		//		printf("Heading: %.2f Roll: %.2f Pitch: %.2f\r\n", v.x, v.y, v.z);
 		//		v = bno055_getVectorQuaternion();
@@ -672,39 +599,69 @@ int main(void) {
 		////				printf("Yaw: %.2f\r\n", yaw);
 		//		printf("Encoder position: %d %d %d X: %.2f Y: %.2f\r\n",
 		//				signed_counter1, signed_counter2, signed_counter3, x, y);
-		/* Stepper */
-		//		stepper_running1 = 1;
+		/* -------------------- Stepper -------------------- */
+
+		//		stepper_running1 = 1; // for testing
+		// set stepper direction
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_3,
 				direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,
 				!direction1 ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
+		// set direction & set-point
 		if (ll1 == 1 && !prev_ll1) {  // LL1 button pressed
 			direction1 = 1;  // Set to Anti-clockwise
+
+			// set motor running state
 			stepper_running = 1;
 			stepper_running1 = 1;
+
+			// assigns target steps
 			target_steps = STEPS;
 			target_steps1 = STEPS;
+
+			// enable motor (optional)
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
+
+		// set direction & set-point
 		if (rr1 == 1 && !prev_rr1) {  // RR1 button pressed
 			direction1 = 0;  // Set to Clockwise
+
+			// set motor running state
 			stepper_running = 1;
 			stepper_running1 = 1;
+
+			// assigns target steps
 			target_steps = STEPS;
 			target_steps1 = STEPS;
+
+			// enable motor (optional)
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
+
+		// stop the motor
 		if (cir == 1 && !prev_cir) {
+
+			// set motor stop state
 			stepper_running = 0;
 			stepper_running1 = 0;
+
+			// reset target steps
 			current_steps = 0;
 			current_steps1 = 0;
+
+			// disable motor (optional)
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 		}
+
+		// maintains previous states
 		prev_ll1 = ll1;
 		prev_rr1 = rr1;
 		prev_cir = cir;
+
+		// step pulse
+		// stepper 1
 		if (stepper_running && (HAL_GetTick() - last_step_time) >= step_delay
 				&& current_steps < target_steps) {
 			last_step_time = HAL_GetTick(); // Update last step time
@@ -718,6 +675,8 @@ int main(void) {
 				step_state = 0;
 			}
 		}
+
+		// stepper 2
 		if (stepper_running1 && (HAL_GetTick() - last_step_time1) >= step_delay1
 				&& current_steps1 < target_steps1) {
 			last_step_time1 = HAL_GetTick(); // Update last step time
@@ -731,91 +690,100 @@ int main(void) {
 				step_state1 = 0;
 			}
 		}
+
 		// Stop when target steps are reached
 		if (current_steps >= target_steps) {
 			stepper_running = 0;
 			current_steps = 0;
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 		}
+
 		if (current_steps1 >= target_steps1) {
 			stepper_running1 = 0;
 			current_steps1 = 0;
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 		}
 
-		/* Dribbling */
+		/* -------------------- Dribbling -------------------- */
+
+		// set motor running state
 		if (tri == 1 && !prev_tri) {
 			ebike_running = 1;
 		}
+
+		// set motor stop state
 		if (cro == 1 && !prev_cro) {  // cro button pressed
 			printf("cross pressed");
 			//			direction1 = 0;  // Set to Clockwise
 			ebike_running = 0;
 		}
+
+		// decreases motor speed
 		if (ll2 == 1 && !prev_ll2) {
 			drib_speed = drib_speed - 2;
 		}
+
+		// increases motor speed
 		if (rr2 == 1 && !prev_rr2) {
 			drib_speed = drib_speed + 2; //62 speed for passing 50 for dribbling
 		}
+
+		// set to default motor speed
 		if (down == 1 && !prev_down) {
 			drib_speed = 70;
 		}
+
+		// if speed below 0, it set to 0
 		if (drib_speed < 0) {
 			drib_speed = 0;
 		}
+
+		// if speed above 100, it set to 100
 		if (drib_speed > 100) {
 			drib_speed = 100;
 		}
+
+		// maintains previous state
 		prev_ll2 = ll2;
 		prev_rr2 = rr2;
 		prev_tri = tri;
 		prev_cro = cro;
 		prev_down = down;
+
+		// set PWM for e-bike
 		if (ebike_running) {
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-//			TIM1->CCR3 = (drib_speed * 999) / 100;  //rpm 2000 test
-//			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3,
 					((drib_speed * 999) / 100));
 		} else {
 			//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, 1);
-//			TIM1->CCR3 = (0 * 999) / 100;
-//			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, ((0 * 999) / 100));
+			__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0);
 		}
 
-		// pneumatics
+		/* -------------------- pneumatics -------------------- */
+
+		// trigger pneumatic
 		if (squ == 1) {
 			pneumatic_open = 1;
 		} else {
 			pneumatic_open = 0;
 		}
 		//		prev_squ = squ;
+
+		// set pneumatic high
 		if (pneumatic_open) {
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
 		} else {
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
 		}
 
-		// servo motor
-//		if (left == 1)
-//		{
-//
-//			htim3.Instance->CCR3 = 50; // duty cycle is 1 ms (0 degrees)
-//
-//		} else if (right == 1) {
-//
-//			htim3.Instance->CCR3 = 125; // duty cycle is 2 ms (180 degrees)
-//
-//		}
-		if (right == 1) {//net open
-//			Set_Servo_Angle(&htim5, TIM_CHANNEL_1, 180);
+		/* -------------------- servo motor -------------------- */
+
+		if (right == 1) { //net open
 			htim1.Instance->CCR1 = 75; // 90 degree
 			htim1.Instance->CCR2 = 75;
 			htim1.Instance->CCR3 = 75;
-		} else if (left == 1) {//net close
-//			Set_Servo_Angle(&htim5, TIM_CHANNEL_1, 90); // duty cycle is 2 ms (180 degrees)
+		} else if (left == 1) { //net close
 			htim1.Instance->CCR1 = 125; // 180 degree
 			htim1.Instance->CCR2 = 125;
 			htim1.Instance->CCR3 = 125;
